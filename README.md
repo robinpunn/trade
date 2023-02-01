@@ -102,3 +102,53 @@
     - Premature optimization is the root of all evil
     - You should always be aware of Big O, but you shouldn't focus on it until you need to
     - Data needs to be sufficently large before you start worrying about Big O
+
+### How To Solve Coding Problems
+
+1. Section Overview
+    - The technical interview is a way to see if you can solve a problem the company or employer is facing
+    - What is the ideal problem solving process?
+    - Use data structures and algorithms to solve problems
+    - The goal is not to memorize algorithms, but to understand the thought process behind solving problems
+    - Analyze Big O solutions, but choose the right solution for the problem
+
+2. What are companies looking for?
+    1. Analytic Skills
+        - How can you think through a problem and analyze it?
+        - Companies want to see how you think through a problem
+    2. Coding Skills
+        - Do you code well?
+        - Is your code clean?
+    3. Technical Skills
+        - Do you know the fundamentals?
+        - Do you understand the pros and cons of different solutions?
+    4. Communication Skills
+        - Does your personality match the company culture?
+        - Can you communicate well with others?
+    - When and why should you use certain data structures and algorithms over others?
+
+3. What we need for coding interviews
+    - Data Structures
+        - Arrays
+        - Stacks
+        - Queues
+        - Linked Lists
+        - Trees
+        - Tries
+        - Graphs
+        - Hash Tables
+    - Algorithms
+        - Sorting
+        - Dynamic Programming
+        - BFS + DFS (searching)
+        - Recursion
+
+4. Exercise: Google Interview
+    - Interview Cheat Sheet
+        1. The three pillars of good code
+        2. What skills interviewers are looking for
+        3. Step by Step through a problem
+        4. Good code checklist
+        5. Hueristics to ace the question
+        - **Always remember**: Communicate your thought process as much as possible. Don't worry about finishing fast. Every part of the interview matters.
+
