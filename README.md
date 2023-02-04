@@ -152,3 +152,43 @@
         5. Hueristics to ace the question
         - **Always remember**: Communicate your thought process as much as possible. Don't worry about finishing fast. Every part of the interview matters.
 
+### Data Structures: Introduction
+
+1. Section Overview
+    - A data structure is a collection of values, the relationships among them, and the functions or operations that can be applied to the data
+    - Algorithms are the steps we put in place to manipulate data structures
+    - Data structures + Algorithms = Programs
+
+2. What is a data structure?
+    - A data structure is a collection of values, the relationships among them, and the functions or operations that can be applied to the data
+    - Data structures are a way to organize data in order to use it more efficiently
+    - Data structures have different pros and cons
+    - Two parts to a data structure
+        1. How to build it
+        2. How to use it
+    - Based on difference scenarios, data needs to be stored in a specifiic format
+
+3. How computers store data
+    - Variables are stored in RAM(random access memory)
+    - Storage is persistent or permanent, RAM is temporary
+    - Persistent storage is slower than RAM
+    - CPU acceses RAM and persistent storage, but accessing RAM is much faster
+    - RAM has addresses that are used to access the data and are used to run programs
+    - Each address has a number of bits that can be used to store data
+    - 8bits = 1 byte, each address can hold 1 byte of data
+    - CPU is connected to a memory controller that is connected to RAM
+    - Memory controller can read and write data to RAM
+    - CPU caches recent data that it has accessed
+    - 8 bit system can store 256 different values, 16 bit system can store 65,536 different values, 32 bit system can store 4,294,967,296 different values, 64 bit system can store 18,446,744,073,709,551,616 different values
+    - Our goal is to minimize the operations that we need to do to in order for the CPU to access the data
+
+4. Data Structures in different languages
+    - Each language has different data types and data structures
+    - Javascript has primitive data types while complex data types are objects and arrays
+    - If a language doesn't have a data structure, you can build it yourself
+
+5. Operations on data structures
+    - Data structures are simply variations on how we store data
+    - Some data structures are better than others for different operations
+    - Insertion, deletion, traversal, searching, and sortig are some of the most common operations
+    - Access is the most important/common operation
