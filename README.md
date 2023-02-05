@@ -192,3 +192,59 @@
     - Some data structures are better than others for different operations
     - Insertion, deletion, traversal, searching, and sortig are some of the most common operations
     - Access is the most important/common operation
+
+### Data Structures: Arrays
+
+1. Arrays Introduction
+    - Arrays, sometimes called lists, organize data sequentially
+    - Arrays have the smallest memory footprint of any data structure
+    - Arrays are the best choice if all you need to do is store data and access it by index
+        - lookup (access) is O(1)
+        - push is O(1)
+        - insert is O(n)
+        - delete is O(n)
+
+2. Static vs Dynamic Arrays
+    - Static arrays are fixed in size, you need to specify the size when you create the array
+    - Dynamic arrays are not fixed in size, they can grow and shrink as needed
+    - Arrays in JavaScript are dynamic
+    - Low level languages like C++ allow managing memory manually, which allows you to create static arrays
+    - With javascript, memory is managed automatically
+    - Dynamic arrays expand as you add more elements
+        - append is O(1) if there is space, O(n) if there is no space
+
+3. Classes in JavaScript
+    - Arrays and objects are reference types in JavaScript
+    - Primitive types are copied by value, reference types are copied by reference
+    - Context vs Scope
+        - Context tells you where we are within the object
+        - Scope is the visibility of variables
+        - this refers to the object that is executing the current function
+    - Instantiation
+        - When you make a copy of an object and reuse the code
+        - The new keyword does the following things
+            - Creates a new empty object
+            - Binds the value of this to the new empty object
+            - Calls the constructor function to build the object
+
+4. Implementing an Array
+    - This section is not necessary for the interview, but it is good to know
+    - Data structures are simply things that we can build from scratch
+    - Most data structures are built on top of other data structures
+    - Arrays in JavaScript are just objects with integer keys that act like indexes
+
+5. Strings and Arrays
+    - Treat strings questions as array questions
+    - Strings are arrays of characters
+    - Use split() to convert a string into an array
+    - Use join() to convert an array into a string
+
+6. Arrays Review
+    - Pros
+        - Fast lookups
+        - Fast push/pop
+        - Ordered
+    - Cons
+        - Slow inserts
+        - Slow deletes
+        - Fixed size (if using static arrays)
