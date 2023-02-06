@@ -248,3 +248,57 @@
         - Slow inserts
         - Slow deletes
         - Fixed size (if using static arrays)
+
+### Data Structures: Hash Tables
+
+1. Hash Tables Introduction
+    - Objects in JavaScript are a type of hash table
+    - Every langauge should have a built in hash table
+        - Python has dictionaries
+        - Java has maps
+        - C++ has maps
+        - Ruby has hashes
+    - Hash tables are used a lot in databases and caches
+    - Hash tables use key value pairs
+        - Keys are used to look up values, like indexes, using hash functions
+
+2. Hash Functions
+    - A hash function generates a value of fixed length for each input that it gets
+    - Hash functions are one way functions, you can't go from the output to the input (imdepotent)
+    - Imdempotence allows for very fast lookups
+    - Under the hood, hash functions are optimized to be very fast, unlike sha256 functions which are slow
+
+3. Hash Collisions
+    - Big O
+        - insert is O(1)
+        - lookup is O(1)
+        - delete is O(1)
+        - search is O(1)
+    - Hash collisions are when two keys map to the same index in an array
+        - This slows down lookups
+        - O(n) instead of O(1)
+    - There are different ways to handle collisions
+
+4. Hash tables in different languages
+    - Implemented differently in different languages, but key and value pairs are usually any type of data
+    - In JavaScript Map() is a way to create a hash table
+    - JavaScript also uses Set() which is a hash table with only keys and no values
+
+5. Hash Tables vs Arrays
+    - Hash tables are great when you want quick access to certain values
+    - Search is O(1) in hash tables and O(n) in arrays
+    - Insertion is O(1) in hash tables and O(n) in arrays
+    - Look up is O(1) in hash tables and O(1) in arrays
+
+6. Hash Tables Review
+    - Pros
+        - Fast lookups
+        - Fast inserts
+        - Flexible keys
+    - Cons
+        - Unordered
+        - Slow key iteration
+    - Hash tables are great for storing data that you need to look up quickly
+    - Hash tables are not good for storing data that you need to iterate over
+    - The trade off is fast access for more memory
+    - One of the solutions for collisions is to use a linked list

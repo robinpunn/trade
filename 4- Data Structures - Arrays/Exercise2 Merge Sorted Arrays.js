@@ -34,7 +34,5 @@ function mergeSortedArray2(array1,array2) {
         }
     }
 
-
-
     return final
 }
