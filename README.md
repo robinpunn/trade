@@ -302,3 +302,43 @@
     - Hash tables are not good for storing data that you need to iterate over
     - The trade off is fast access for more memory
     - One of the solutions for collisions is to use a linked list
+
+### Data Structures: Linked Lists
+
+1. Linked Lists Introduction
+    - Two types of linked lists
+        - Singly linked lists
+        - Doubly linked lists
+    - Arrays can increase in size, but this increases the memory footprint
+    - Arrays also have bad performance for insertion and deletion
+    - Hash tables improve on some of the array deficiencies, but they are not ordered
+
+2. What is a Linked List?
+    - A singly linked list is a collection of nodes that each point to the next node
+    - Each node has a value and a pointer to the next node
+    - The first node is called the head and the last node is called the tail
+    - Linked lists are null terminated, the last node points to null
+    - Linked lists can be sorted or unsorted
+    - Linked lists can contain any type of data
+    - JavaScript does not have linked lists, but you can build them yourself
+
+3. Why linked lists?
+    - Linked lists are great for insertion and deletion
+    - Linked lists are not great for random access
+    - The main difference between arrays and linked lists is that arrays are indexed while linked lists are not
+        - It is easy to find an item in an arrray with the index
+        - To find an item in a linked list you need to traverse the list
+    - Another advantage arrays have is caching, which is when the CPU stores data in memory for faster access
+        - Linked lists are not stored contiguously in memory, so they are not good for caching
+    - Linked lists have an advantage over hash tables because they are ordered
+    - Big(O)
+        - prepend is O(1)
+        - append is O(1)
+        - lookup is O(n)
+        - insert is O(n)
+        - delete is O(n)
+
+4. What is a pointer?
+    - A pointer is a reference to another location in memory
+    - In JavaScript, when using a pointer, deleting the original object will not delete the object that the pointer is pointing to
+    - JavaScript is garbage collected, meaning that memory is managed automatically
