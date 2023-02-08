@@ -40,6 +40,7 @@ class LinkedList {
             array.push(currentNode.value)
             currentNode = currentNode.next
         }
+        console.log(this)
         return array
     }
     insert(index,value) {
@@ -60,20 +61,19 @@ class LinkedList {
     }
     remove(index) {
         //params
-        if (index >=this.length || index<= 0) {
+        if (index >=this.length || index< 0) {
             return 'not in range'
         }
 
         //remove head
-        if (index===1) {
+        if (index===0) {
             this.length--
-            const header = this.traverseToIndex(index)
-            this.head = header
+            this.head = this.head.next
             return this
         }
 
+        //variab le to track index input
         const leader = this.traverseToIndex(index-1)
-        console.log(leader)
 
         //remove tail
         if (index === this.length-1) {
@@ -89,6 +89,7 @@ class LinkedList {
         this.length--
         return this
     }
+
     traverseToIndex(index) {
         let counter = 0
         let currentNode = this.head
