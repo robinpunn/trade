@@ -342,3 +342,13 @@
     - A pointer is a reference to another location in memory
     - In JavaScript, when using a pointer, deleting the original object will not delete the object that the pointer is pointing to
     - JavaScript is garbage collected, meaning that memory is managed automatically
+
+5. Doubly Linked Lists
+    - Doubly linked lists are linked lists where each node points to the next and the previous node
+    - This allows for traversal in both directions
+    - Big(O)
+        - prepend is O(1)
+        - append is O(1)
+        - lookup is O(n)
+        - insert is O(n)
+        - delete is O(n)
