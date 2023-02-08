@@ -43,24 +43,6 @@ class LinkedList {
         return array
     }
     insert(index,value) {
-        /* my solution
-         if (index===0) {
-            return this.prepend(value)
-        }
-        if (index >= this.length) {
-            return this.append(value)
-        }
-        let pre = this.head
-        for (let i=0; i<index-1;i++) {
-            pre = pre.next
-        }
-        let aft = pre.next
-        const newNode = new Node(value)
-        newNode.next = aft
-        pre.next = newNode
-        this.length++
-        return this
-        */
         //check params
         if (index===0) {
             return this.prepend(value)
@@ -74,6 +56,37 @@ class LinkedList {
         leader.next = newNode
         newNode.next = holdingPointer
         this.length++
+        return this
+    }
+    remove(index) {
+        //params
+        if (index >=this.length || index<= 0) {
+            return 'not in range'
+        }
+
+        //remove head
+        if (index===1) {
+            this.length--
+            const header = this.traverseToIndex(index)
+            this.head = header
+            return this
+        }
+
+        const leader = this.traverseToIndex(index-1)
+        console.log(leader)
+
+        //remove tail
+        if (index === this.length-1) {
+            leader.next = null
+            this.tail = leader
+            this.length--
+            return this
+        }
+
+        //remove middle
+        const removeNode = leader.next
+        leader.next = removeNode.next
+        this.length--
         return this
     }
     traverseToIndex(index) {
