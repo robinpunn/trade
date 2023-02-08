@@ -48,6 +48,7 @@ class LinkedList {
             array.push(currentNode.value)
             currentNode = currentNode.next
         }
+        console.log(this)
         return array
     }
 
@@ -62,6 +63,7 @@ class LinkedList {
         const newNode = new Node(value)
         const leader = this.traverseToIndex(index-1)
         const follower = leader.next
+        console.log(leader,leader.next)
         leader.next = newNode
         newNode.prev = leader
         newNode.next = follower
@@ -72,15 +74,15 @@ class LinkedList {
 
     remove(index) {
         //params
-        if (index >=this.length || index<= 0) {
+        if (index >=this.length || index< 0) {
             return 'not in range'
         }
 
         //remove head
-        if (index===1) {
+        if (index===0) {
             this.length--
-            const header = this.traverseToIndex(index)
-            this.head = header
+            this.head = this.head.next
+            this.head.prev = null
             return this
         }
 
@@ -97,6 +99,8 @@ class LinkedList {
 
         //remove middle
         const removeNode = leader.next
+        const follower = removeNode.next
+        follower.prev = leader
         leader.next = removeNode.next
         this.length--
         return this
