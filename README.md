@@ -352,3 +352,27 @@
         - lookup is O(n)
         - insert is O(n)
         - delete is O(n)
+
+6. Singly vs Doubly Linked Lists
+    - Singly linked lists are better for memory
+    - Doubly linked lists are better for finding the previous node
+    - Singly linked lists are better for insertion and deletion
+    - Doubly linked lists are better for lookup
+
+7. Linked Lists Review
+    - Doens't come prebuilt in JavaScript and other languages because it is low level
+    - It is used a lot in other data structures like hash tables, stacks, and queues
+    - A fundamental data structure that is very useful in computer science, and a popular interview question
+    - Pros
+        - Fast insertion
+        - Fast deletion
+        - Ordered
+        - Flexible size
+    - Cons
+        - Slow lookup
+        - More memory
+    - The primary reason to choose a linked list over something like an array is simplicity and the ability to shrink and grow as needed
+    - Light weight and self contained, seen in a lot of places
+        - File systems in a computer
+        - browser history
+    - Linked lists are related to trees and graphs
