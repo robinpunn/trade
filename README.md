@@ -376,3 +376,34 @@
         - File systems in a computer
         - browser history
     - Linked lists are related to trees and graphs
+
+    ### Data Structures: Stacks and Queues
+
+    1. Stacks and Queues Introduction
+        - Stacks and queues are linear data structures
+            - Stacks and queues are ordered, so data is traversed sequentially
+            - Unlike arrays, there is no random access operation
+            - Built on top of lower level data structures like arrays and linked lists
+            - Higher level allows for more control over how data is stored and accessed
+
+    2. Stacks
+        - LIFO: Last in, first out
+        - Big(O)
+            - lookup is O(n)
+            - pop is O(1)
+            - push is O(1)
+            - peek is O(1)
+        - Browser history is an example of a stack
+        - Undo/redo is an example of a stack
+
+    3. Queues
+        - FIFO: First in, first out
+        - Big(O)
+            - lookup is O(n)
+            - enqueue is O(1)
+            - dequeue is O(1)
+            - peek is O(1)
+        - Apps like uber or restaurants use queues
+        - Printers and task scheduling are examples of queues
+        - Uploading resources to a server is an example of a queue
+        - Not efficient to create a queue with an array because you have to shift the array every time you dequeue
