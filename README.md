@@ -377,33 +377,77 @@
         - browser history
     - Linked lists are related to trees and graphs
 
-    ### Data Structures: Stacks and Queues
+### Data Structures: Stacks and Queues
 
-    1. Stacks and Queues Introduction
-        - Stacks and queues are linear data structures
-            - Stacks and queues are ordered, so data is traversed sequentially
-            - Unlike arrays, there is no random access operation
-            - Built on top of lower level data structures like arrays and linked lists
-            - Higher level allows for more control over how data is stored and accessed
+1. Stacks and Queues Introduction
+    - Stacks and queues are linear data structures
+        - Stacks and queues are ordered, so data is traversed sequentially
+        - Unlike arrays, there is no random access operation
+        - Built on top of lower level data structures like arrays and linked lists
+        - Higher level allows for more control over how data is stored and accessed
 
-    2. Stacks
-        - LIFO: Last in, first out
-        - Big(O)
-            - lookup is O(n)
-            - pop is O(1)
-            - push is O(1)
-            - peek is O(1)
-        - Browser history is an example of a stack
-        - Undo/redo is an example of a stack
+2. Stacks
+    - LIFO: Last in, first out
+    - Big(O)
+        - lookup is O(n)
+        - pop is O(1)
+        - push is O(1)
+        - peek is O(1)
+    - Browser history is an example of a stack
+    - Undo/redo is an example of a stack
 
-    3. Queues
-        - FIFO: First in, first out
-        - Big(O)
-            - lookup is O(n)
-            - enqueue is O(1)
-            - dequeue is O(1)
-            - peek is O(1)
-        - Apps like uber or restaurants use queues
-        - Printers and task scheduling are examples of queues
-        - Uploading resources to a server is an example of a queue
-        - Not efficient to create a queue with an array because you have to shift the array every time you dequeue
+3. Queues
+    - FIFO: First in, first out
+    - Big(O)
+        - lookup is O(n)
+        - enqueue is O(1)
+        - dequeue is O(1)
+        - peek is O(1)
+    - Apps like uber or restaurants use queues
+    - Printers and task scheduling are examples of queues
+    - Uploading resources to a server is an example of a queue
+    - Not efficient to create a queue with an array because you have to shift the array every time you dequeue
+
+4. Exercise 1 Stacks and Queues
+    - For stacks, both linked lists and arrays are good options
+        - Arrays allow cache locality, which is better for speed when accessing data
+        - Linked lists have extra memory associated with the pointers but have better dynamic memory allocation
+    - Queues are better implemented with linked lists because you don't have to shift the array every time you dequeue
+
+5. How JavaScript works (optional)
+    - JavaScript is a single threaded language that can be non-blocking
+    1. What is a program?
+        - allocates memory
+        - parses and executes
+    2. JavaScript engine... v8 on chrome... reads the code and executes it
+        - memory heap... memory allocation
+        - call stack... where the code is read and executed
+    3. Memory Leak
+        - memory leaks happen when you have unused memory that is not freed, it fills up the memory heap
+    4. Call Stack
+        - where the code is read and executed
+        - first in, last out
+        - synchronous, meaning that one thing happens at a time
+            - with multithreading, multiple things can happen at the same time, which can cause deadlocks... when two threads are waiting for each other to finish
+        - Stack overflow is when the call stack is too large
+    5. JavaScript runtime environment
+        - included in browsers
+        - web APIs
+            - setTimeout
+            - fetch
+            - DOM
+        - callback queue
+        - event loop
+            - event loop checks the call stack and the callback queue
+            - if the call stack is empty, it will push the first thing in the callback queue to the call stack
+            - if the call stack is not empty, it will wait
+            - this is how asynchronous code works
+
+6. Stacks and Queues Review
+    - Stacks and Queues
+        - Fast operations
+        - Fast peek
+        - Ordered
+        - Slow lookup
+    - Stacks and Queues can be built with arrays or linked lists
+        - It may not be a good idea to build a queue with an array because you have to shift the array every time you dequeue
