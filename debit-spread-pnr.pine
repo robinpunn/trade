@@ -1,0 +1,105 @@
+// This Pine Script™ code is subject to the terms of the Mozilla Public License 2.0 at https://mozilla.org/MPL/2.0/
+// © IVI4yh3IVI
+
+//@version=5
+indicator("Debit Spread Point of No Return", overlay=true)
+
+// User inputs for trade open and expiration dates
+tradeOpenDate = input.time(defval=timestamp("2024-07-01"), title="Trade Open Date")
+tradeExpDate = input.time(defval=timestamp("2024-07-15"), title="Trade Expiration Date")
+longStrikePrice = input.price(defval=100.0, title="Long Strike Price")
+shortStrikePrice = input.price(defval=95.0, title="Short Strike Price")
+
+// Variables for lines and labels
+var line openLine = na
+var line closeLine = na
+var line diagonalLine = na
+var line longStrikeLevel = na
+var line shortStrikeLevel = na
+var label longStrikeLabel = na
+var label shortStrikeLabel = na
+var label pnrLabel = na
+
+// ATR input
+atrLength = input.int(14, title="ATR Length", minval=1)
+atrMultiplier = input.float(1, title="ATR Multiplier", step=0.1)
+
+// Calculate ATR
+atr = ta.atr(atrLength) * atrMultiplier
+
+// Calculate days until expiration
+daysUntilExpiration = (tradeExpDate - tradeOpenDate) / (1000 * 60 * 60 * 24)
+
+// Calculate PNR price
+PNR = longStrikePrice - (longStrikePrice * daysUntilExpiration * atr) / 2000
+formattedPNR = str.tostring(PNR, "#.##")
+
+// Function to calculate the bar index for a given date, with safety check
+safeBarIndex(targetDate) =>
+    barDiff = (targetDate - time) / (time - time[1])
+    int(math.abs(barDiff) > 499 ? na : bar_index + barDiff)
+
+// Trade open line
+if (time >= tradeOpenDate)
+    openBarIndex = safeBarIndex(tradeOpenDate)
+    if not na(openBarIndex)
+        if (na(openLine))
+            openLine := line.new(x1=openBarIndex, y1=low, x2=openBarIndex, y2=high, 
+                                 extend=extend.both, color=color.blue, width=3)
+            pnrLabel := label.new(x=openBarIndex, y=PNR, text=formattedPNR, 
+                                          color=color.red, textcolor=color.white, style=label.style_label_right)
+        else
+            line.set_x1(openLine, openBarIndex)
+            line.set_x2(openLine, openBarIndex)
+            line.set_y1(openLine, low)
+            line.set_y2(openLine, high)
+            label.set_x(pnrLabel, openBarIndex)
+            label.set_y(pnrLabel, PNR)
+
+// Trade expiration line
+if (time <= tradeExpDate)
+    closeBarIndex = safeBarIndex(tradeExpDate)
+    if not na(closeBarIndex)
+        if (na(closeLine))
+            closeLine := line.new(x1=closeBarIndex, y1=low, x2=closeBarIndex, y2=high, extend=extend.both, color=color.red, width=3)
+            longStrikeLabel := label.new(x=closeBarIndex, y=longStrikePrice, text=str.tostring(longStrikePrice), color=color.green, textcolor=color.white, style=label.style_label_left)
+            shortStrikeLabel := label.new(x=closeBarIndex, y=shortStrikePrice, text=str.tostring(shortStrikePrice), color=color.red, textcolor=color.white, style=label.style_label_left)
+
+            // Create horizontal strike level lines
+            openBarIndex = safeBarIndex(tradeOpenDate)
+            if not na(openBarIndex)
+                longStrikeLevel := line.new(x1=openBarIndex, y1=longStrikePrice, x2=closeBarIndex, y2=longStrikePrice, color=color.green, style=line.style_dashed)
+                shortStrikeLevel := line.new(x1=openBarIndex, y1=shortStrikePrice, x2=closeBarIndex, y2=shortStrikePrice, color=color.red, style=line.style_dashed)
+        else
+            line.set_x1(closeLine, closeBarIndex)
+            line.set_x2(closeLine, closeBarIndex)
+            line.set_y1(closeLine, low)
+            line.set_y2(closeLine, high)
+            label.set_x(longStrikeLabel, closeBarIndex)
+            label.set_y(longStrikeLabel, longStrikePrice)
+            label.set_x(shortStrikeLabel, closeBarIndex)
+            label.set_y(shortStrikeLabel, shortStrikePrice)
+
+            // Update horizontal strike lines
+            openBarIndex = safeBarIndex(tradeOpenDate)
+            if not na(openBarIndex)
+                line.set_x1(longStrikeLevel, openBarIndex)
+                line.set_x2(longStrikeLevel, closeBarIndex)
+                line.set_y1(longStrikeLevel, longStrikePrice)
+                line.set_y2(longStrikeLevel, longStrikePrice)
+                line.set_x1(shortStrikeLevel, openBarIndex)
+                line.set_x2(shortStrikeLevel, closeBarIndex)
+                line.set_y1(shortStrikeLevel, shortStrikePrice)
+                line.set_y2(shortStrikeLevel, shortStrikePrice)
+
+        // Create diagonal line from PNR to short strike
+        openBarIndex = safeBarIndex(tradeOpenDate)
+        if not na(openBarIndex) and not na(closeBarIndex)
+            if (na(diagonalLine))
+                diagonalLine := line.new(x1=openBarIndex, y1=PNR, x2=closeBarIndex, y2=shortStrikePrice, 
+                                         color=color.yellow, style=line.style_dashed, width=1)
+            else
+                line.set_x1(diagonalLine, openBarIndex)
+                line.set_y1(diagonalLine, PNR)
+                line.set_x2(diagonalLine, closeBarIndex)
+                line.set_y2(diagonalLine, shortStrikePrice)
