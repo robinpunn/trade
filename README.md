@@ -1,6 +1,11 @@
 # Custom Indicators
 This repository is a collection of technical indicators 
 
+### Debit Spread Point of No Return
+- This indicator was created with the formula found in the book [Mean Reversion Trading](https://www.amazon.com/Mean-Reversion-Trading-Technical-Analysis-ebook/dp/B0B781VTZX/ref=sr_1_1?crid=35C2DW94FESUV&dib=eyJ2IjoiMSJ9.26n3tNbcUQflWrHzWPbPcAEHOCCw44N8TkqgrJHtWTWVrwRqUW95sm-qD6-plM5QiMpKUnqBi5SzLISKXLK2dO6zs3_pWJBfzTnhDwvF0Bs.mMBT33qp9k_URothrDm0eGMz_ALZ9OzmPgI7sE5Ku9Y&dib_tag=se&keywords=mean+reversion+trading+nishant+pant&qid=1723005127&sprefix=mean+rever%2Caps%2C106&sr=8-1).
+- When running a debit spread, enter the open date, expiration date, long strike, and short strike. 
+- When price falls below the diagonal line from the PNR price to the short strike, considering closing the position.   
+
 ### Multi-Channel SARCloud
 - This indicator is to be used with TradingView
 - It combines Bollinger Bands, Keltner Channels, Donchain Channels, Ichimoku Cloud, and SAR. 

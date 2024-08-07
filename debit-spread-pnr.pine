@@ -1,7 +1,6 @@
 // This Pine Script™ code is subject to the terms of the Mozilla Public License 2.0 at https://mozilla.org/MPL/2.0/
 // © IVI4yh3IVI
 
-//@version=5
 indicator("Debit Spread Point of No Return", overlay=true)
 
 // User inputs for trade open and expiration dates
@@ -20,6 +19,7 @@ var line shortStrikeLevel = na
 var label longStrikeLabel = na
 var label shortStrikeLabel = na
 var label pnrLabel = na
+var float PNR = 0.0
 
 // ATR input
 atrLength = input.int(14, title="ATR Length", minval=1)
@@ -44,7 +44,11 @@ countTradingDays(startDate, endDate) =>
 tradingDaysUntilExpiration = countTradingDays(tradeOpenDate, tradeExpDate)
 
 // Calculate PNR price
-PNR = longStrikePrice - (longStrikePrice * tradingDaysUntilExpiration * atr) / 2000
+if longStrikePrice < shortStrikePrice
+    PNR := longStrikePrice - (longStrikePrice * tradingDaysUntilExpiration * atr) / 2000
+else 
+    PNR := longStrikePrice + (longStrikePrice * tradingDaysUntilExpiration * atr) / 2000
+
 formattedPNR = str.tostring(PNR, "#.##")
 
 // Find the correct bar indices
