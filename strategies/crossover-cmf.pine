@@ -1,0 +1,54 @@
+//@version=5
+strategy("Crossover CMF", overlay=true)
+
+// Define input variables for take profit and stop loss
+long_tp_inp = input.float(10, title='Long Take Profit %', step=0.1) / 100
+long_sl_inp = input.float(5, title='Long Stop Loss %', step=0.1) / 100
+lensig = input.int(14, title="ADX Smoothing", minval=1, maxval=50)
+cmflength = input.int(20, title="CMF Length")
+
+// Calculate CMFvar cumVol = 0.
+var cumVol = 0.
+cumVol += nz(volume)
+if barstate.islast and cumVol == 0
+    runtime.error("No volume is provided by the data vendor.")
+length = input.int(20, minval=1)
+ad = close==high and close==low or high==low ? 0 : ((2*close-low-high)/(high-low))*volume
+cmf = math.sum(ad, length) / math.sum(volume, length)
+
+// Define indicators
+ema5 = ta.ema(close, 5)
+ema20 = ta.ema(close, 20)
+ema50 = ta.ema(close, 50)
+ema200 = ta.ema(close, 200)
+[dmiPlus, dmiMinus, _] = ta.dmi(14, lensig)
+
+// Calculate entry price
+entry_price_long = strategy.position_avg_price
+
+// Calculate take profit and stop loss levels
+TP_long = entry_price_long * (1 + long_tp_inp)
+SL_long = entry_price_long * (1 - long_sl_inp)
+
+// Plot the take profit and stop loss levels on the chart
+plot(TP_long, color=color.green, title="Take Profit Level")
+plot(SL_long, color=color.red, title="Stop Loss Level")
+
+// Entry conditions
+dmiBullishCross = ta.crossover(dmiPlus, dmiMinus)
+emaBullishCross = ta.crossover(ema5, ema20)
+cmfCrossZero = ta.crossover(cmf, 0)
+
+// Long conditions
+longCondition1 = dmiBullishCross and cmf > 0 and cmf > cmf[1]
+longCondition2 = dmiBullishCross and cmf < 0 and cmf > cmf[1] and cmf > cmf[5]
+longCondition3 = emaBullishCross and cmf > 0 and dmiPlus > dmiMinus
+longCondition4 = emaBullishCross and cmf < 0 and dmiPlus > dmiMinus and cmf > cmf[1] and cmf > cmf[5]
+longCondition5 = cmfCrossZero and dmiPlus > dmiMinus and ema5 > ema20 and dmiPlus > dmiPlus[2] and ema5 > ema5[2]
+
+// Execute trades
+if (longCondition1 or longCondition2 or longCondition3 or longCondition4 or longCondition5)
+    strategy.entry("Long", strategy.long)
+
+// Exit conditions
+strategy.exit("Take Profit/Stop Loss", "Long", limit=TP_long, stop=SL_long)
