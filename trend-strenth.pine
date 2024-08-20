@@ -1,15 +1,17 @@
 //@version=5
-indicator(title="Trend Strenth Oscillator", shorttitle="Entry", overlay=false)
+indicator(title="Trend Strength Oscillator", shorttitle="Trend Strength", overlay=false)
 
 // Inputs
 basePeriods = input.int(26, minval=1, title="Base Line Length")
 maPeriods = input.int(9, minval=1, title="Moving Average Length")
-pointsPeriods = input.int(50, minval=1, title="Points Period")
+pointsPeriods = input.int(5, minval=1, title="Points Period")
+pointsPeriods2 = input.int(20, minval=1, title="Points Period")
 avgLength = input.int(50, minval=1, title="Average Length")
 lensig = input.int(14, title="ADX Smoothing", minval=1, maxval=50)
 len = input.int(14, minval=1, title="DI Length")
 trendLookback = input.int(5, minval=1, title="Trend Lookback Period")
-cmfChangeThreshold = input.float(10, title="CMF Entry Threshold", step=0.01)
+cmfDecreaseThreshold = input.float(20, title="CMF Decrease Threshold", step=0.01)
+cmfIncreaseThreshold = input.float(10, title = "CMF Increase Threshold")
 
 // Kijun Sen
 donchian(len) => math.avg(ta.lowest(len), ta.highest(len))
@@ -36,7 +38,7 @@ cmfChange3 = cmfPrev1 != 0 ? (mf - cmfPrev1) / math.abs(cmfPrev3) * 100 : (mf - 
 cmfChange4 = cmfPrev2 != 0 ? (mf - cmfPrev2) / math.abs(cmfPrev4) * 100 : (mf - cmfPrev4) / epsilon * 100
 cmfChange5 = cmfPrev1 != 0 ? (mf - cmfPrev1) / math.abs(cmfPrev5) * 100 : (mf - cmfPrev5) / epsilon * 100
 
-// DMI
+// DI
 up = ta.change(high)
 down = -ta.change(low)
 plusDM = na(up) ? na : (up > down and up > 0 ? up : 0)
@@ -51,6 +53,7 @@ weeklyCMF = request.security(syminfo.tickerid, "W", mf)
 weeklyAvgCMF = request.security(syminfo.tickerid, "W", avgCMF)
 weeklyPlus = request.security(syminfo.tickerid, "W", plus)
 weeklyMinus = request.security(syminfo.tickerid, "W", minus)
+weeklyVWAP = request.security(syminfo.tickerid, "W", ta.vwap(50))  
 
 // Trend Detection
 isTrendingUp(series, lookback) =>
@@ -59,8 +62,8 @@ isTrendingUp(series, lookback) =>
 isTrendingDown(series, lookback) =>
     series[0] < ta.sma(series, lookback)
 
-// Function to calculate points
-calculatePointsAbove(baseLine, weeklyKijun, mf, avgCMF, plus, minus, weeklyCMF, weeklyAvgCMF, weeklyPlus, weeklyMinus, crossWeeklyKijun) =>
+// Functions to calculate points
+calculateKijunPoints(baseLine, weeklyKijun, crossWeeklyKijun, weeklyVWAP) =>
     float localPoints = 0
     if isTrendingUp(baseLine, trendLookback)
         localPoints += 3
@@ -68,91 +71,138 @@ calculatePointsAbove(baseLine, weeklyKijun, mf, avgCMF, plus, minus, weeklyCMF, 
         localPoints -= 3
     if baseLine > ta.vwap(50)
         localPoints += 3
-    if mf > 0
-        localPoints += 3
-    if mf < 0
-        localPoints -= 15
-    if mf > avgCMF
-        localPoints += 3
-    if mf < avgCMF
+    if baseLine < ta.vwap(50)
         localPoints -= 3
-    if mf < 20
-        localPoints += 3
-    if mf > 20
-        localPoints -= 3
-    if cmfChange1 < -cmfChangeThreshold or cmfChange2 < -cmfChangeThreshold or cmfChange3 < -cmfChangeThreshold or cmfChange4 < -cmfChangeThreshold or cmfChange5 < -cmfChangeThreshold
+    if close < weeklyKijun
         localPoints -= 5
-    if cmfChange1 > cmfChangeThreshold or cmfChange2 > cmfChangeThreshold or cmfChange3 > cmfChangeThreshold or cmfChange4 > cmfChangeThreshold or cmfChange5 > cmfChangeThreshold
-        localPoints += 5
-    if plus > minus
-        localPoints += 3
-    if plus < minus
-        localPoints -= 3
     if close > weeklyKijun
         localPoints += 2
     if crossWeeklyKijun
         localPoints += 3
     if isTrendingUp(weeklyKijun, trendLookback)
-        localPoints += 3
-    if close < weeklyKijun
-        localPoints -= 10
-    if weeklyPlus > weeklyMinus
         localPoints += 5
-    if weeklyPlus < weeklyMinus
+    if isTrendingDown(weeklyKijun, trendLookback)
         localPoints -= 5
-    if weeklyKijun > ta.vwap(50)
-        localPoints += 3
-    if weeklyCMF > 0
-        localPoints += 3
-    if weeklyCMF < 0
-        localPoints -= 3
-    if weeklyCMF > weeklyAvgCMF
-        localPoints += 2
+    if weeklyKijun > weeklyVWAP
+        localPoints += 5
+    if weeklyKijun < weeklyVWAP
+        localPoints -= 5
     localPoints
 
-calculatePointsBelow(baseLine, weeklyKijun, mf, avgCMF, plus, minus, weeklyCMF, weeklyAvgCMF, weeklyPlus, weeklyMinus, crossWeeklyKijun) =>
-    float localPoints = 0
-    if isTrendingUp(baseLine, trendLookback)
-        localPoints += 3
-    if isTrendingDown(baseLine, trendLookback)
-        localPoints -= 3
-    if baseLine > ta.vwap(50)
-        localPoints += 3
+calculateCMFPoints(mf, avgCMF, weeklyCMF, weeklyAvgCMF) =>
+    float localCMFPoints = 0
     if mf > 0
-        localPoints += 3
+        localCMFPoints += 5
     if mf < 0
-        localPoints -= 10
+        localCMFPoints -= 5
     if mf > avgCMF
-        localPoints += 3
+        localCMFPoints += 3
     if mf < avgCMF
-        localPoints -= 3
-    if mf < 20
-        localPoints += 3
+        localCMFPoints -= 3
+    if mf > 0 and mf < 15
+        localCMFPoints += 2
     if mf > 20
-        localPoints -= 3
-    if cmfChange1 < -cmfChangeThreshold or cmfChange2 < -cmfChangeThreshold or cmfChange3 < -cmfChangeThreshold or cmfChange4 < -cmfChangeThreshold or cmfChange5 < -cmfChangeThreshold
-        localPoints -= 5
-    if cmfChange1 > cmfChangeThreshold or cmfChange2 > cmfChangeThreshold or cmfChange3 > cmfChangeThreshold or cmfChange4 > cmfChangeThreshold or cmfChange5 > cmfChangeThreshold
-        localPoints += 5
-    if plus > minus
-        localPoints += 3
-    if plus < minus
-        localPoints -= 3
-    if isTrendingUp(weeklyKijun, trendLookback)
-        localPoints += 3
-    if weeklyPlus > weeklyMinus
-        localPoints += 5
-    if weeklyPlus < weeklyMinus
-        localPoints -= 5
-    if weeklyKijun > ta.vwap(50)
-        localPoints += 3
+        localCMFPoints -= 2
+    if mf > 25
+        localCMFPoints -= 2
+    if mf > 30
+        localCMFPoints -= 3
     if weeklyCMF > 0
-        localPoints += 3
+        localCMFPoints += 5
     if weeklyCMF < 0
-        localPoints -= 3
+        localCMFPoints -= 5
     if weeklyCMF > weeklyAvgCMF
-        localPoints += 2
-    localPoints
+        localCMFPoints += 5
+    if weeklyCMF < weeklyAvgCMF
+        localCMFPoints -= 5
+    if cmfChange1 < -cmfDecreaseThreshold or cmfChange2 < -cmfDecreaseThreshold or cmfChange3 < -cmfDecreaseThreshold or cmfChange4 < -cmfDecreaseThreshold or cmfChange5 < -cmfDecreaseThreshold
+        localCMFPoints -= 10
+    if cmfChange1 > cmfIncreaseThreshold or cmfChange2 > cmfIncreaseThreshold or cmfChange3 > cmfIncreaseThreshold or cmfChange4 > cmfIncreaseThreshold or cmfChange5 > cmfIncreaseThreshold
+        localCMFPoints += 10
+    localCMFPoints
+
+calculateDIPoints(plus, minus, weeklyPlus, weeklyMinus) =>
+    localDIPoints = 0
+    difference = plus - minus
+
+    if plus > minus
+        localDIPoints += 2
+    if plus < minus
+        localDIPoints -= 2
+    if weeklyPlus > weeklyMinus
+        localDIPoints +=3
+    if weeklyPlus < weeklyMinus
+        localDIPoints -=3
+    
+    if difference > 40
+        localDIPoints += 8
+    else if difference > 35
+        localDIPoints += 7
+    else if difference > 30
+        localDIPoints += 6
+    else if difference > 25
+        localDIPoints += 5
+    else if difference > 20
+        localDIPoints += 4
+    else if difference > 15
+        localDIPoints += 3
+    else if difference > 10
+        localDIPoints += 2
+    else if difference > 5
+        localDIPoints += 1
+
+    if difference < -40
+        localDIPoints -= 8
+    else if difference < -35
+        localDIPoints -= 7
+    else if difference < -30
+        localDIPoints -= 6
+    else if difference < -25
+        localDIPoints -= 5
+    else if difference < -20
+        localDIPoints -= 4
+    else if difference < -15
+        localDIPoints -= 3
+    else if difference < -10
+        localDIPoints -= 2
+    else if difference < -5
+        localDIPoints -= 1
+    
+    weeklyDifference = weeklyPlus - weeklyMinus
+    if weeklyDifference > 40
+        localDIPoints += 8
+    else if weeklyDifference > 35
+        localDIPoints += 7
+    else if weeklyDifference > 30
+        localDIPoints += 6
+    else if weeklyDifference > 25
+        localDIPoints += 5
+    else if weeklyDifference > 20
+        localDIPoints += 4
+    else if weeklyDifference > 15
+        localDIPoints += 3
+    else if weeklyDifference > 10
+        localDIPoints += 2
+    else if weeklyDifference > 5
+        localDIPoints += 1
+
+    if weeklyDifference < -40
+        localDIPoints -= 8
+    else if weeklyDifference < -35
+        localDIPoints -= 7
+    else if weeklyDifference < -30
+        localDIPoints -= 6
+    else if weeklyDifference < -25
+        localDIPoints -= 5
+    else if weeklyDifference < -20
+        localDIPoints -= 4
+    else if weeklyDifference < -15
+        localDIPoints -= 3
+    else if weeklyDifference < -10
+        localDIPoints -= 2
+    else if weeklyDifference < -5
+        localDIPoints -= 1
+    localDIPoints
 
 // Calculate Points
 points = 0.0
@@ -164,49 +214,41 @@ crossWeeklyKijun = ta.barssince(ta.crossover(close, weeklyKijun)) <= 2
 // Use a single call to calculatePoints per logical block
 if crossRecentKijun
     points += 5
-    points += calculatePointsAbove(baseLine, weeklyKijun, mf, avgCMF, plus, minus, weeklyCMF, weeklyAvgCMF, weeklyPlus, weeklyMinus, crossWeeklyKijun)
+    points += calculateKijunPoints(baseLine, weeklyKijun, crossWeeklyKijun, weeklyVWAP)
+    points += calculateCMFPoints(mf, avgCMF, weeklyCMF, weeklyAvgCMF)
+    points += calculateDIPoints(plus, minus, weeklyPlus, weeklyMinus)
 else if close > baseLine
     points += 2
     if crossRecentKijun
         points += 3
-    points += calculatePointsAbove(baseLine, weeklyKijun, mf, avgCMF, plus, minus, weeklyCMF, weeklyAvgCMF, weeklyPlus, weeklyMinus, crossWeeklyKijun)
-else if crossWeeklyKijun
-    points += 5
-    points += calculatePointsAbove(baseLine, weeklyKijun, mf, avgCMF, plus, minus, weeklyCMF, weeklyAvgCMF, weeklyPlus, weeklyMinus, crossWeeklyKijun)
-else if close > weeklyKijun
-    points += 2
-    if crossWeeklyKijun
-        points += 3
-    points += calculatePointsAbove(baseLine, weeklyKijun, mf, avgCMF, plus, minus, weeklyCMF, weeklyAvgCMF, weeklyPlus, weeklyMinus, crossWeeklyKijun)
+    points += calculateKijunPoints(baseLine, weeklyKijun, crossWeeklyKijun, weeklyVWAP)
+    points += calculateCMFPoints(mf, avgCMF, weeklyCMF, weeklyAvgCMF)
+    points += calculateDIPoints(plus, minus, weeklyPlus, weeklyMinus)
 else if close < baseLine
     points -= 5
-    if close < weeklyKijun
-        points -= 10
-    points += calculatePointsBelow(baseLine, weeklyKijun, mf, avgCMF, plus, minus, weeklyCMF, weeklyAvgCMF, weeklyPlus, weeklyMinus, crossWeeklyKijun)
-else if close < weeklyKijun
-    points -=10
-    points += calculatePointsBelow(baseLine, weeklyKijun, mf, avgCMF, plus, minus, weeklyCMF, weeklyAvgCMF, weeklyPlus, weeklyMinus, crossWeeklyKijun)
+    points += calculateKijunPoints(baseLine, weeklyKijun, crossWeeklyKijun, weeklyVWAP)
+    points += calculateCMFPoints(mf, avgCMF, weeklyCMF, weeklyAvgCMF)
+    points += calculateDIPoints(plus, minus, weeklyPlus, weeklyMinus)
+else if close == baseLine
+    if crossRecentKijun
+        points += 3
+    points += calculateKijunPoints(baseLine, weeklyKijun, crossWeeklyKijun, weeklyVWAP)
+    points += calculateCMFPoints(mf, avgCMF, weeklyCMF, weeklyAvgCMF)
+    points += calculateDIPoints(plus, minus, weeklyPlus, weeklyMinus)
 
 // Calculate moving average of Kijun
 pointsMA = ta.sma(points,pointsPeriods)
+pointsMA2 = ta.sma(points,pointsPeriods2)
 
 // Plot the oscillator with conditional coloring
 plot(points, "Points Oscillator", color=points >= 0 ? color.green : color.red, linewidth=2)
-plot(pointsMA, "Points Oscillator", color=pointsMA >= 0 ? color.blue : color.yellow, linewidth=2)
+plot(pointsMA, "Points Moving Average Oscillator", color=pointsMA >= 0 ? color.green : color.yellow, linewidth=2)
+plot(pointsMA2, "Points Moving Average2 Oscillator", color=pointsMA2 >= 0 ? color.blue : color.purple, linewidth=2)
 
 // Add a zero line
-hline(0, "Zero Line", color=color.gray, linestyle=hline.style_dotted)
-
-// Add labels for crossovers and crossunders on the oscillator line
-// if ta.crossover(close, baseLine)
-//     label.new(bar_index, points, "D", color=color.green, textcolor=color.white, style=label.style_label_down, size=size.tiny)
-// if ta.crossunder(close, baseLine)
-//     label.new(bar_index, points, "D", color=color.red, textcolor=color.white, style=label.style_label_up, size=size.tiny)
-
-// if ta.crossover(close, weeklyKijun)
-//     label.new(bar_index, points, "W", color=color.green, textcolor=color.white, style=label.style_label_down, size=size.tiny)
-// if ta.crossunder(close, weeklyKijun)
-//     label.new(bar_index, points, "W", color=color.red, textcolor=color.white, style=label.style_label_up, size=size.tiny)
+hline(0, "Zero Line", color=color.gray, linestyle=hline.style_dashed, linewidth = 2)
+hline(30, "Upper Line", color=color.gray, linestyle=hline.style_dashed, linewidth = 1)
+hline(-30, "Lower Line", color=color.gray, linestyle=hline.style_dashed, linewidth = 1)
 
 if ta.crossover(close, baseLine)
     label.new(bar_index, pointsMA, "D", color=color.green, textcolor=color.white, style=label.style_label_down, size=size.tiny)
