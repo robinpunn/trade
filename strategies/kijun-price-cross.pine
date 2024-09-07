@@ -1,0 +1,82 @@
+//@version=5
+strategy("Kijun Sen Strategy with Dynamic Position Sizing", overlay=true, process_orders_on_close=true)
+
+// Risk Management Inputs
+riskPercentage = input.float(2, "Risk Percentage (%)", minval=0.1, maxval=100) / 100
+atrMultiplier = input.float(1.5, "ATR Multiplier for Stop Loss", minval=0.1)
+
+// Other Inputs
+basePeriods = input.int(26, minval=1, title="Base Line Length")
+atrPeriod = input.int(14, minval=1, title="ATR Length")
+
+// Function to calculate the Donchian channel midpoint
+donchian(len) => math.avg(ta.lowest(len), ta.highest(len))
+
+// Calculate Kijun Sen baseline and ATR
+baseLine = donchian(basePeriods)
+atr = ta.atr(atrPeriod)
+
+// Entry condition
+longCondition = ta.crossover(close, baseLine)
+
+// Position Sizing Calculation
+stopLossDistance = math.max(atr * atrMultiplier, syminfo.mintick)
+riskAmount = strategy.equity * riskPercentage
+positionSize = math.floor(math.abs(riskAmount / stopLossDistance))
+
+// Exit conditions
+stopLoss = strategy.position_avg_price - stopLossDistance
+takeProfit1 = strategy.position_avg_price + atr
+trailingStopActivation = strategy.position_avg_price + (2.0 * atr)
+
+// Variables for trailing stop
+var float trailingStopLevel = na
+var bool trailingStopActive = false
+
+// Entry and exit logic
+if barstate.isconfirmed
+    // Entry logic
+    if (longCondition and strategy.position_size == 0 and positionSize > 0)
+        strategy.entry("Long", strategy.long, qty=positionSize)
+        trailingStopLevel := na
+        trailingStopActive := false
+    
+    // Exit logic
+    if (strategy.position_size > 0)
+        // Trailing stop logic
+        if (high >= trailingStopActivation)
+            trailingStopActive := true
+        
+        if (trailingStopActive)
+            trailingStopLevel := math.max(nz(trailingStopLevel), high - stopLossDistance)
+            if (low <= trailingStopLevel)
+                strategy.close_all(comment="Trailing Stop")
+        else
+            // Stop loss
+            if (low <= stopLoss)
+                strategy.close_all(comment="Stop Loss")
+            else
+                // Take profit
+                strategy.exit("TP1", "Long", qty_percent=50, limit=takeProfit1)
+    else
+        trailingStopActive := false
+        trailingStopLevel := na
+
+
+// Variables to track specific exit types
+var bool tp1Exit = false
+var bool trailingStopExit = false
+var bool stopLossExit = false
+
+// Check for specific exit types
+if barstate.isconfirmed
+    if (strategy.position_size == 0 and strategy.position_size[1] > 0)
+        if (high[1] >= takeProfit1)
+            tp1Exit := true
+        else if (trailingStopActive[1] and low[1] <= trailingStopLevel[1] and not na(trailingStopLevel[1]))
+            trailingStopExit := true
+        else
+            stopLossExit := true
+
+// Plot Kijun Sen
+plot(baseLine, color=color.blue, title="Kijun Sen", linewidth=2)
