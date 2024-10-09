@@ -1,0 +1,114 @@
+// This Pine Script™ code is subject to the terms of the Mozilla Public License 2.0 at https://mozilla.org/MPL/2.0/
+// © IVI4yh3IVI
+
+//@version=5
+strategy("Stochastic RSI Crossover (ACTUAL NNFX) with FIXED ATR Sizing/Exit (close) and CMF Down Trend Exit", overlay=true, process_orders_on_close=true)
+
+// Risk Management Inputs
+riskPercentage = input.float(2, "Risk Percentage (%)", minval=0.1, maxval=100) / 100
+atrMultiplier = input.float(1.5, "ATR Multiplier for Stop Loss", minval=0.1)
+
+// ATR
+atrPeriod = input.int(14, minval=1, title="ATR Length")
+atr = ta.atr(atrPeriod)
+var float entryAtr = na
+
+// Stochastic Inputs
+smoothK = input.int(3, "K", minval=1)
+smoothD = input.int(3, "D", minval=1)
+lengthRSI = input.int(14, "RSI Length", minval=1)
+lengthStoch = input.int(14, "Stochastic Length", minval=1)
+src = input(close, title="RSI Source")
+oversoldLevel = input.int(20, "Oversold Level")
+overboughtLevel = input.int(80, "Overbought Level")
+
+// CMF Inputs
+cmfLength = input.int(20, "CMF Length", minval=1)
+cmfTrendPeriod = input.int(7, "CMF Trend Period", minval=2)
+
+// Calculate Stochastic
+rsi1 = ta.rsi(src, lengthRSI)
+stochK = ta.sma(ta.stoch(rsi1, rsi1, rsi1, lengthStoch), smoothK)
+stochD = ta.sma(stochK, smoothD)
+
+// Calculate CMF
+ad = close==high and close==low or high==low ? 0 : ((2*close-low-high)/(high-low))*volume
+mf = ta.sma(ad, cmfLength) / ta.sma(volume, cmfLength)
+
+// Trend Function
+isTrendingDown(series, lookback) =>
+    series[0] < ta.sma(series, lookback)
+
+cmfTrendingDown = isTrendingDown(mf, cmfTrendPeriod)
+
+// Entry conditions
+longCondition = ta.crossover(stochK, stochD) 
+
+// Position Sizing Calculation for Longs
+stopLossDistance = math.max(atr * atrMultiplier, syminfo.mintick)
+riskAmount = strategy.equity * riskPercentage
+positionSize = math.floor(math.abs(riskAmount / stopLossDistance))
+
+// Exit conditions
+var float longStopLoss = na
+var float longTakeProfit1 = na 
+var float longTrailingStopActivation = na
+var float fixedStoplossDistance = na
+
+// Variables for trailing stop and position management
+var float trailingStopLevel = na
+var bool trailingStopActive = false
+var bool tp1Hit = false
+var float remainingPositionStopLoss = na
+
+// Entry and exit logic
+if barstate.isconfirmed
+    // Long entry logic
+    if (longCondition and strategy.position_size == 0 and positionSize > 0)
+        strategy.entry("Long", strategy.long, qty=positionSize)
+        trailingStopLevel := na
+        trailingStopActive := false
+        tp1Hit := false
+        remainingPositionStopLoss := na
+        entryAtr := atr
+    
+    // Long exit logic
+    if (strategy.position_size > 0)
+        longTakeProfit1 := strategy.position_avg_price + entryAtr
+        longStopLoss := strategy.position_avg_price - (entryAtr * 1.5)
+        longTrailingStopActivation := strategy.position_avg_price + (entryAtr * 2.0)
+        fixedStoplossDistance := entryAtr * atrMultiplier
+
+        // Check if TP1 is hit
+        if (not tp1Hit and close >= longTakeProfit1)
+            strategy.exit("Long TP1", "Long", qty_percent=50, limit=longTakeProfit1)
+            tp1Hit := true
+            remainingPositionStopLoss := strategy.position_avg_price 
+            trailingStopActive := false 
+
+        // Trailing stop and stop loss logic
+        if (tp1Hit)
+            if (not trailingStopActive and close >= longTrailingStopActivation)
+                trailingStopActive := true
+            
+            if (trailingStopActive)
+                trailingStopLevel := math.max(nz(trailingStopLevel), close - fixedStoplossDistance)
+                if (close <= trailingStopLevel)
+                    strategy.close_all(comment="Long Trailing Stop")
+            else
+                if (close <= remainingPositionStopLoss)
+                    strategy.close_all(comment="Long Stop Loss (After TP1)")
+        else
+            if (close <= longStopLoss)
+                strategy.close_all(comment="Long Initial Stop Loss")
+        
+        // CMF Trending Down Exit
+        if (cmfTrendingDown and trailingStopActive)
+            strategy.close_all(comment="Long CMF Trending Down Exit")
+                
+    // Reset variables when not in a position
+    if (strategy.position_size <= 0)
+        trailingStopActive := false
+        trailingStopLevel := na
+        tp1Hit := false
+        remainingPositionStopLoss := na
