@@ -1,0 +1,151 @@
+// This Pine Script™ code is subject to the terms of the Mozilla Public License 2.0 at https://mozilla.org/MPL/2.0/
+// © IVI4yh3IVI
+
+//@version=5
+strategy("NNFX Money Management (LONG ONLY) with Fixed/Dynamic ATR and Close/High Targets", overlay=true, process_orders_on_close=true)
+
+// New user input options
+atrType = input.string("Fixed", "ATR Type", options=["Fixed", "Dynamic"])
+priceType = input.string("Close", "Price Type", options=["Close", "High"])
+stopType = input.string("Close", "Stop Type", options=["Close", "Low"])
+cmfDownTrend = input.string("YES", "CMF Down Trend Exit", options=["YES", "NO"])
+pt = priceType == "Close" ? close : high
+st = stopType == "Close" ? close : low
+
+// Risk Management Inputs
+riskPercentage = input.float(2, "Risk Percentage (%)", minval=0.1, maxval=100) / 100
+atrMultiplier = input.float(1.5, "ATR Multiplier for Stop Loss", minval=0.1)
+
+// ATR
+atrPeriod = input.int(14, minval=1, title="ATR Length")
+atr = ta.atr(atrPeriod)
+var float entryAtr = na
+
+// Stochastic Inputs
+smoothK = input.int(3, "K", minval=1)
+smoothD = input.int(3, "D", minval=1)
+lengthRSI = input.int(14, "RSI Length", minval=1)
+lengthStoch = input.int(14, "Stochastic Length", minval=1)
+src = input(close, title="RSI Source")
+oversoldLevel = input.int(20, "Oversold Level")
+overboughtLevel = input.int(80, "Overbought Level")
+
+// CMF Inputs
+cmfLength = input.int(20, "CMF Length", minval=1)
+cmfTrendPeriod = input.int(7, "CMF Trend Period", minval=2)
+
+// Calculate Stochastic
+rsi1 = ta.rsi(src, lengthRSI)
+stochK = ta.sma(ta.stoch(rsi1, rsi1, rsi1, lengthStoch), smoothK)
+stochD = ta.sma(stochK, smoothD)
+
+// Calculate CMF
+ad = close==high and close==low or high==low ? 0 : ((2*close-low-high)/(high-low))*volume
+mf = ta.sma(ad, cmfLength) / ta.sma(volume, cmfLength)
+
+// Trend Function
+isTrendingDown(series, lookback) =>
+    series[0] < ta.sma(series, lookback)
+
+cmfTrendingDown = isTrendingDown(mf, cmfTrendPeriod)
+
+// Entry conditions
+longCondition = ta.crossover(stochK, stochD) 
+
+// Early exit
+// earlyExit = stochK > 70 and ta.crossunder(stochK, stochD)
+// bearishDivergence = (high > high[1] and rsi1 < rsi1[1]) 
+
+// Position Sizing Calculation for Longs
+stopLossDistance = math.max(atr * atrMultiplier, syminfo.mintick)
+riskAmount = strategy.equity * riskPercentage
+positionSize = math.floor(math.abs(riskAmount / stopLossDistance))
+
+// Exit conditions
+var float longStopLoss = na
+var float longTakeProfit1 = na 
+var float longTrailingStopActivation = na
+var float fixedStoplossDistance = na
+var float fixedAtrStopLoss = na
+var float dynamicAtrStopLoss = na
+
+// Variables for trailing stop and position management
+var float trailingStopLevel = na
+var bool trailingStopActive = false
+var bool tp1Hit = false
+var float remainingPositionStopLoss = na
+
+// Entry and exit logic
+if barstate.isconfirmed
+    // Long entry logic
+    if (longCondition and strategy.position_size == 0 and positionSize > 0)
+        strategy.entry("Long", strategy.long, qty=positionSize)
+        entryAtr := atr
+        trailingStopLevel := na
+        trailingStopActive := false
+        tp1Hit := false
+        remainingPositionStopLoss := na
+    
+    // Long exit logic
+    if (strategy.position_size > 0)
+        float currentAtr = atrType == "Fixed" ? entryAtr : atr
+        fixedAtrStopLoss := strategy.position_avg_price - (entryAtr * atrMultiplier)
+        dynamicAtrStopLoss := strategy.position_avg_price - (atr * atrMultiplier)
+        longStopLoss := atrType == "Fixed" ? fixedAtrStopLoss : dynamicAtrStopLoss
+        
+        longTakeProfit1 := strategy.position_avg_price + currentAtr
+        longTrailingStopActivation := strategy.position_avg_price + (currentAtr * 2.0)
+        fixedStoplossDistance := currentAtr * atrMultiplier
+
+        // Check if stop loss is hit
+        if (st <= longStopLoss)
+            strategy.close_all(comment="Long Stop Loss (" + atrType + " ATR)")
+        
+        // if (earlyExit) 
+        //     strategy.close_all(comment="Early Exit")
+
+        // if (bearishDivergence) 
+        //     strategy.close_all(comment="Early Exit")
+
+        // Check if TP1 is hit
+        if (not tp1Hit and pt >= longTakeProfit1)
+            strategy.exit("Long TP1", "Long", qty_percent=50, limit=longTakeProfit1)
+            tp1Hit := true
+            remainingPositionStopLoss := strategy.position_avg_price 
+            trailingStopActive := false 
+
+        // Trailing stop logic
+        if (tp1Hit)
+            if (not trailingStopActive and pt >= longTrailingStopActivation)
+                trailingStopActive := true
+            
+            if (trailingStopActive)
+                trailingStopLevel := math.max(nz(trailingStopLevel), pt - fixedStoplossDistance)
+                if (st <= trailingStopLevel)
+                    strategy.close_all(comment="Long Trailing Stop")
+            else
+                if (st <= remainingPositionStopLoss)
+                    strategy.close_all(comment="Long Stop Loss (After TP1)")
+                
+        // CMF Trending Down Exit
+        if (cmfDownTrend == "YES")
+            if (cmfTrendingDown and trailingStopActive)
+                strategy.close_all(comment="Long CMF Trending Down Exit")
+
+    // Reset variables when not in a position
+    if (strategy.position_size <= 0)
+        trailingStopActive := false
+        trailingStopLevel := na
+        tp1Hit := false
+        remainingPositionStopLoss := na
+        fixedAtrStopLoss := na
+        dynamicAtrStopLoss := na
+        longStopLoss := na
+     
+
+// Create a table to display ATR and ATR Type
+var table atrTable = table.new(position.bottom_right, 2, 2)
+table.cell(atrTable, 0, 0, "ATR Type:", bgcolor=color.new(color.blue, 70), text_color=color.white)
+table.cell(atrTable, 1, 0, atrType, bgcolor=color.new(color.blue, 70), text_color=color.white)
+table.cell(atrTable, 0, 1, "ATR:", bgcolor=color.new(color.blue, 70), text_color=color.white)
+table.cell(atrTable, 1, 1, str.tostring(atr, "#.####"), bgcolor=color.new(color.blue, 70), text_color=color.white)
