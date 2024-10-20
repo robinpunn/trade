@@ -59,3 +59,13 @@ This repository is a collection of trading scripts (currently Pinescript and MQL
 - Uses NNFX atr money mangement system with added user options
 - User can choose a dynamic atr (atr that changes during the life of the trade) or a fixed atr (atr when trade was opened)
 - Users can choose to initiate take profits and trailing stop based on high or close
+
+## MQL5
+### Indicators
+#### [Kijun Sen](https://github.com/robinpunn/trade/blob/main/mql5/indicators/kijun.mq5)
+- The kijun-sen line for the Ichimoku indicator
+
+### Expert Advisor
+#### [NNFX Kijun](https://github.com/robinpunn/trade/blob/main/mql5/ea/nnfx-kijun.mq5)
+- Uses [NNFX](https://youtu.be/bqWLFNpK6eg?list=PLPqWQo6-TXfE8G_Mmxow0znSSoWTu44e7&t=839) ATR based money management strategy
+- Long when price crosses above the kijun-sen and short when price crosses below
