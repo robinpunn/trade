@@ -3,84 +3,136 @@
 //|                                  Copyright 2024, MetaQuotes Ltd. |
 //|                                             https://www.mql5.com |
 //+------------------------------------------------------------------+
-#property copyright "Copyright 2024, Your Name"
-#property link      "https://www.yourwebsite.com"
+#property copyright "Copyright 2024, Robin Punnoose"
+#property link      "https://www.robinpunn.com"
 #property version   "1.01"
 #property strict
 
 #include <Trade\Trade.mqh>
 
-input int InpKijunPeriod = 26;     // Kijun-sen period
-input int ATR_Period = 14;         // ATR period
-input double RiskPercent = 2.0;    // Risk percentage of account balance
+input int InpKijunPeriod = 26;     
+input int ATR_Period = 14;         
+input double RiskPercent = 2.0;   
 
 int atrHandle;
 CTrade trade;
 double atrValue;
 
-//+------------------------------------------------------------------+
-//| Expert initialization function                                   |
-//+------------------------------------------------------------------+
+bool partialCloseExecuted = false;
+
+enum SignalType
+{
+   SIGNAL_LONG,
+   SIGNAL_SHORT,
+   SIGNAL_NONE
+};
+
 int OnInit()
 {
-    // Initialize ATR indicator
     atrHandle = iATR(_Symbol, PERIOD_CURRENT, ATR_Period);
     if(atrHandle == INVALID_HANDLE)
     {
         Print("Failed to create ATR indicator handle. Error code: ", GetLastError());
         return INIT_FAILED;
     }
+    
+    EventSetTimer(1);
 
     return INIT_SUCCEEDED;
 }
 
-//+------------------------------------------------------------------+
-//| Expert deinitialization function                                 |
-//+------------------------------------------------------------------+
+
+
 void OnDeinit(const int reason)
 {
-    if(atrHandle != INVALID_HANDLE)
-        IndicatorRelease(atrHandle);
+   if(atrHandle != INVALID_HANDLE)
+      IndicatorRelease(atrHandle);
+   EventKillTimer();     
 }
 
-//+------------------------------------------------------------------+
-//| Expert tick function                                             |
-//+------------------------------------------------------------------+
+
+void OnTimer()
+{
+   static datetime lastBarTime = 0;
+   datetime currentBarTime = TimeCurrent();
+   datetime barCloseTime = iTime(_Symbol, PERIOD_CURRENT, 0) + PeriodSeconds(PERIOD_CURRENT);
+   
+   if (currentBarTime >= barCloseTime - 600 && currentBarTime < barCloseTime && lastBarTime != barCloseTime)
+   {
+      ProcessEndOfBar();
+      lastBarTime = barCloseTime;
+   }
+}
+
+
+
 void OnTick()
 {
-    if(!PositionSelect(_Symbol))
-    {
-        CheckForNewPosition();
-    }
-    else
-    {
-        ManageOpenPosition();
-    }
+   if(PositionSelect(_Symbol))
+   {
+      UpdateStopLoss();
+   }
 }
 
-//+------------------------------------------------------------------+
-//| Check for new position entry                                     |
-//+------------------------------------------------------------------+
-void CheckForNewPosition()
+
+
+void ProcessEndOfBar()
+{
+   if(!PositionSelect(_Symbol))
+   {
+     partialCloseExecuted = false;
+     CheckForNewPosition();
+   }
+    else
+   {
+     ManageOpenPosition();
+   }
+}
+
+
+
+double GetATRValue()
+{
+   double atrBuffer[];
+   if(CopyBuffer(atrHandle, 0,0,1, atrBuffer) !=1)
+   {
+      Print("Failed to copy ATR data. Error code: ", GetLastError());
+      return 0;
+   }
+   return atrBuffer[0];
+}
+
+
+
+SignalType Confirmation()
 {
     double kijunValues[2];
     double closeValues[2];
     
-    // Calculate Kijun values for the last two candles
-    kijunValues[0] = CalculateKijun(1);
-    kijunValues[1] = CalculateKijun(2);
+    kijunValues[0] = CalculateKijun(0);
+    kijunValues[1] = CalculateKijun(1);
     
-    // Get close prices for the last two candles
-    closeValues[0] = iClose(_Symbol, PERIOD_CURRENT, 1);
-    closeValues[1] = iClose(_Symbol, PERIOD_CURRENT, 2);
-
-    double atrBuffer[];
-    if(CopyBuffer(atrHandle, 0, 1, 1, atrBuffer) != 1)
+    closeValues[0] = iClose(_Symbol, PERIOD_CURRENT, 0);
+    closeValues[1] = iClose(_Symbol, PERIOD_CURRENT, 1);
+    
+    if(SymbolInfoDouble(_Symbol, SYMBOL_ASK) > kijunValues[0] && closeValues[1] <= kijunValues[1])
     {
-        Print("Failed to copy ATR data. Error code: ", GetLastError());
-        return;
+      return SIGNAL_LONG;
     }
-    atrValue = atrBuffer[0];
+    
+    if(SymbolInfoDouble(_Symbol, SYMBOL_BID) < kijunValues[0] && closeValues[1] >= kijunValues[1])
+    {
+      return SIGNAL_SHORT;
+    }
+    
+    return SIGNAL_NONE;
+}
+
+
+void CheckForNewPosition()
+{
+    atrValue = GetATRValue();
+    if(atrValue == 0) return;
 
     double stopLossDistance = 1.5 * atrValue;
     double accountBalance = AccountInfoDouble(ACCOUNT_BALANCE);
@@ -88,104 +140,116 @@ void CheckForNewPosition()
     
     double lotSize = CalculateLotSize(riskAmount, stopLossDistance);
 
-    // Long entry condition: Price closes above Kijun
-    if(closeValues[0] > kijunValues[0] && closeValues[1] <= kijunValues[1])
+    if(AccountInfoDouble(ACCOUNT_MARGIN_FREE) < AccountInfoDouble(ACCOUNT_MARGIN_INITIAL))
     {
-        double entryPrice = SymbolInfoDouble(_Symbol, SYMBOL_ASK);
-        double stopLoss = entryPrice - stopLossDistance;
-
-        ulong ticket = trade.Buy(lotSize, _Symbol, entryPrice, stopLoss, 0, "Buy signal");
-        if(ticket > 0)
-        {
-            Print("Buy position opened. Lots: ", lotSize, ", SL: ", stopLoss);
-        }
-        else
-        {
-            Print("Failed to open Buy position. Error code: ", GetLastError());
-        }
+        Print("Insufficient free margin to open position");
+        return;
     }
     
-    // Short entry condition: Price closes above Kijun
-    if(closeValues[0] < kijunValues[0] && closeValues[1] >= kijunValues[1])
+    SignalType confirmation = Confirmation();
+    
+    switch(confirmation)
     {
-        double entryPrice = SymbolInfoDouble(_Symbol, SYMBOL_BID);
-        double stopLoss = entryPrice + stopLossDistance;
-
-        ulong ticket = trade.Sell(lotSize, _Symbol, entryPrice, stopLoss, 0, "Sell signal");
-        if(ticket > 0)
+      case SIGNAL_LONG:
+      {
+        double entryPrice = SymbolInfoDouble(_Symbol, SYMBOL_ASK);
+        double stopLoss = NormalizeDouble(entryPrice - stopLossDistance, _Digits);
+        
+        if(trade.PositionOpen(_Symbol, ORDER_TYPE_BUY, lotSize, entryPrice, stopLoss, 0, "Buy signal"))
         {
-            Print("Sell position opened. Lots: ", lotSize, ", SL: ", stopLoss);
+            Print("Buy position opened. Lots: ", lotSize, ", SL: ", stopLoss);
+            return;
         }
         else
         {
             Print("Failed to open Buy position. Error code: ", GetLastError());
         }
+        break;
+      }
+      case SIGNAL_SHORT:
+      {
+        double entryPrice = SymbolInfoDouble(_Symbol, SYMBOL_BID);
+        double stopLoss = NormalizeDouble(entryPrice + stopLossDistance, _Digits); 
+        
+        if(trade.PositionOpen(_Symbol, ORDER_TYPE_SELL, lotSize, entryPrice, stopLoss, 0, "Sell signal"))
+        {
+            Print("Sell position opened. Lots: ", lotSize, ", SL: ", stopLoss);
+            return;
+        }
+        else
+        {
+            Print("Failed to open Sell position. Error code: ", GetLastError());
+        }
+        break;
+      }
+      case SIGNAL_NONE:
+      {
+         break;
+      }
     }
 }
 
-//+------------------------------------------------------------------+
-//| Manage open position                                             |
-//+------------------------------------------------------------------+
+
+
 void ManageOpenPosition()
 {
     if(!PositionSelect(_Symbol)) return;
 
     double openPrice = PositionGetDouble(POSITION_PRICE_OPEN);
-    double currentPrice = PositionGetDouble(POSITION_PRICE_CURRENT);
+    double longClosePrice = SymbolInfoDouble(_Symbol, SYMBOL_BID);
+    double shortClosePrice = SymbolInfoDouble(_Symbol, SYMBOL_ASK);
     double stopLoss = PositionGetDouble(POSITION_SL);
     double positionVolume = PositionGetDouble(POSITION_VOLUME);
     ENUM_POSITION_TYPE posType = (ENUM_POSITION_TYPE)PositionGetInteger(POSITION_TYPE);
     ulong ticket = PositionGetInteger(POSITION_TICKET);
 
-    // Update ATR value
-    double atrBuffer[];
-    if(CopyBuffer(atrHandle, 0, 1, 1, atrBuffer) != 1) return;
-    atrValue = atrBuffer[0];
-
+    atrValue = GetATRValue();
+    if(atrValue == 0) return;
+    
     if(posType == POSITION_TYPE_BUY)
     {
-        // Check if price has moved 1 ATR in our favor and position hasn't been partially closed yet
-        if(currentPrice >= openPrice + atrValue && MathAbs(positionVolume - CalculateLotSize(AccountInfoDouble(ACCOUNT_BALANCE) * (RiskPercent / 100.0), 1.5 * atrValue)) < 0.00001)
+        if(!partialCloseExecuted && longClosePrice >= openPrice + atrValue)
         {
+            double closeVolume = NormalizeDouble(positionVolume * 0.5, 2);
             // Close 50% of the position
-            trade.PositionClosePartial(ticket, positionVolume * 0.5);
-            
-            // Move stop loss to break even
-            trade.PositionModify(ticket, openPrice, 0);
+            if(trade.PositionClosePartial(ticket,closeVolume))
+            {
+               partialCloseExecuted = true;
+               trade.PositionModify(ticket, openPrice, 0.0);
+               Print("Take Profit 1 hit, SL moved to: ", openPrice);
+            }       
         }
         
-        // Check if price has moved 2 ATR in our favor
-        if(currentPrice >= openPrice + 2*atrValue)
+        if(longClosePrice >= openPrice + 2*atrValue)
         {
-            // Move stop loss to 1.5 ATR from the current price
-            double newStopLoss = currentPrice - 1.5*atrValue;
+            double newStopLoss = NormalizeDouble(longClosePrice - 1.5*atrValue, _Digits);
             if(newStopLoss > stopLoss)
             {
-                trade.PositionModify(ticket, newStopLoss, 0);
+                trade.PositionModify(ticket, newStopLoss, 0.0);
+                Print("Trailing stop updated for Buy position. New SL: ", newStopLoss);
             }
         }
     }
     else if(posType == POSITION_TYPE_SELL)
     {
-        // Short position management
-        // Check if price has moved 1 ATR in our favor and position hasn't been partially closed yet
-        if(currentPrice <= openPrice - atrValue && MathAbs(positionVolume - CalculateLotSize(AccountInfoDouble(ACCOUNT_BALANCE) * (RiskPercent / 100.0), 1.5 * atrValue)) < 0.00001)
+        if(!partialCloseExecuted && shortClosePrice <= openPrice - atrValue)
         {
-            // Close 50% of the position
-            trade.PositionClosePartial(ticket, positionVolume * 0.5);
-            
-            // Move stop loss to break even
-            trade.PositionModify(ticket, openPrice, 0);
+            double closeVolume = NormalizeDouble(positionVolume * 0.5, 2);
+            if(trade.PositionClosePartial(ticket,closeVolume))
+            {
+               partialCloseExecuted = true;
+               trade.PositionModify(ticket, openPrice, 0.0);
+               Print("Take Profit 1 hit, SL move to: ", openPrice);
+            }               
         }
         
-        // Check if price has moved 2 ATR in our favor
-        if(currentPrice <= openPrice - 2*atrValue)
+        if(shortClosePrice <= openPrice - 2*atrValue)
         {
-            // Move stop loss to 1.5 ATR from the current price
-            double newStopLoss = currentPrice + 1.5*atrValue;
+            double newStopLoss = NormalizeDouble(shortClosePrice + 1.5*atrValue, _Digits);
             if(newStopLoss < stopLoss)
             {
-                trade.PositionModify(ticket, newStopLoss, 0);
+                trade.PositionModify(ticket, newStopLoss, 0.0);
+                Print("Trailing stop updated for Sell position. New SL: ", newStopLoss);
             }
         }
     }
@@ -193,9 +257,25 @@ void ManageOpenPosition()
 
 
 
-//+------------------------------------------------------------------+
-//| Calculate Kijun-sen value                                        |
-//+------------------------------------------------------------------+
+void UpdateStopLoss()
+{
+   if(!PositionSelect(_Symbol)) return;
+   
+   double longClosePrice = SymbolInfoDouble(_Symbol, SYMBOL_BID);
+   double shortClosePrice = SymbolInfoDouble(_Symbol, SYMBOL_ASK);
+   double stopLoss = PositionGetDouble(POSITION_SL);
+   ENUM_POSITION_TYPE posType = (ENUM_POSITION_TYPE)PositionGetInteger(POSITION_TYPE);
+   ulong ticket = PositionGetInteger(POSITION_TICKET);
+   
+   if((posType == POSITION_TYPE_BUY && longClosePrice <= stopLoss) || (posType == POSITION_TYPE_SELL && shortClosePrice >= stopLoss))
+   {
+      trade.PositionClose(ticket);
+      Print("Stop Loss Hit");
+   }
+}
+
+
+
 double CalculateKijun(int shift)
 {
     double highestHigh = iHigh(_Symbol, PERIOD_CURRENT, iHighest(_Symbol, PERIOD_CURRENT, MODE_HIGH, InpKijunPeriod, shift));
@@ -203,9 +283,8 @@ double CalculateKijun(int shift)
     return (highestHigh + lowestLow) / 2;
 }
 
-//+------------------------------------------------------------------+
-//| Calculate lot size based on risk                                 |
-//+------------------------------------------------------------------+
+
+
 double CalculateLotSize(double riskAmount, double stopLossDistance)
 {
     double tickSize = SymbolInfoDouble(_Symbol, SYMBOL_TRADE_TICK_SIZE);
@@ -224,4 +303,3 @@ double CalculateLotSize(double riskAmount, double stopLossDistance)
 
     return lotSize;
 }
-//+------------------------------------------------------------------+
