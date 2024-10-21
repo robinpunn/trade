@@ -1,54 +1,68 @@
-//+------------------------------------------------------------------+
-//|                                         ATR Money Management.mq5 |
-//|                                  Copyright 2024, MetaQuotes Ltd. |
-//|                                             https://www.mql5.com |
-//+------------------------------------------------------------------+
-#property copyright "Copyright 2024, Robin Punnoose"
-#property link      "https://www.robinpunn.com"
-#property version   "1.01"
-#property strict
+   //+------------------------------------------------------------------+
+   //|                                                   NNFX Kijun.mq5 |
+   //|                                  Copyright 2024, MetaQuotes Ltd. |
+   //|                                             https://www.mql5.com |
+   //+------------------------------------------------------------------+
+   #property copyright "Copyright 2024, Robin Punnoose"
+   #property link      "https://www.robinpunn.com"
+   #property version   "1.01"
+   #property strict
+   
+   #include <Trade\Trade.mqh>
+   
+   int kijunHandle;   
+   input int InpKijunPeriod = 26;     
+   input int ATR_Period = 14;         
+   input double RiskPercent = 2.0;
+   double kijunValues[];
+   
+   int atrHandle;
+   CTrade trade;
+   double atrValue;
+   
+   bool partialCloseExecuted = false;
+   
+   enum SignalType
+   {
+      SIGNAL_LONG,
+      SIGNAL_SHORT,
+      SIGNAL_NONE
+   };
+   
+   
+   
+   int OnInit()
+   {
+       atrHandle = iATR(Symbol(), Period(), ATR_Period);
+       if(atrHandle == INVALID_HANDLE)
+       {
+           Print("Failed to create ATR indicator handle. Error code: ", GetLastError());
+           return INIT_FAILED;
+       }
+       
+       kijunHandle = iCustom(Symbol(), Period(), "Kijun", InpKijunPeriod);
+       if(kijunHandle == INVALID_HANDLE)
+       {
+           Print("Failed to create Kijun indicator handle. Error code: ", GetLastError());
+           return INIT_FAILED;
+       }
+       
+       ArraySetAsSeries(kijunValues, true);
+   
+       EventSetTimer(1);
+   
+       return INIT_SUCCEEDED;
+   }
+   
+   
+   
+   void OnDeinit(const int reason)
+   {
+      if(atrHandle != INVALID_HANDLE) IndicatorRelease(atrHandle);
+      if(kijunHandle != INVALID_HANDLE) IndicatorRelease(kijunHandle);   
+      EventKillTimer();     
+   }
 
-#include <Trade\Trade.mqh>
-
-input int InpKijunPeriod = 26;     
-input int ATR_Period = 14;         
-input double RiskPercent = 2.0;   
-
-int atrHandle;
-CTrade trade;
-double atrValue;
-
-bool partialCloseExecuted = false;
-
-enum SignalType
-{
-   SIGNAL_LONG,
-   SIGNAL_SHORT,
-   SIGNAL_NONE
-};
-
-int OnInit()
-{
-    atrHandle = iATR(_Symbol, PERIOD_CURRENT, ATR_Period);
-    if(atrHandle == INVALID_HANDLE)
-    {
-        Print("Failed to create ATR indicator handle. Error code: ", GetLastError());
-        return INIT_FAILED;
-    }
-    
-    EventSetTimer(1);
-
-    return INIT_SUCCEEDED;
-}
-
-
-
-void OnDeinit(const int reason)
-{
-   if(atrHandle != INVALID_HANDLE)
-      IndicatorRelease(atrHandle);
-   EventKillTimer();     
-}
 
 
 void OnTimer()
@@ -78,6 +92,8 @@ void OnTick()
 
 void ProcessEndOfBar()
 {
+   CalculateKijun(); 
+   
    if(!PositionSelect(_Symbol))
    {
      partialCloseExecuted = false;
@@ -104,29 +120,38 @@ double GetATRValue()
 
 
 
+void CalculateKijun()
+{
+    if(CopyBuffer(kijunHandle, 0, 0, 2, kijunValues) != 2)
+    {
+      Print("Failed to copy Kijun data. Error code: ", GetLastError());
+      return;
+    }  
+}
+
+
+
 SignalType Confirmation()
 {
-    double kijunValues[2];
-    double closeValues[2];
+    double closeValues[];
+     
+    closeValues[0] = iClose(Symbol(), Period(), 1);
     
-    kijunValues[0] = CalculateKijun(0);
-    kijunValues[1] = CalculateKijun(1);
-    
-    closeValues[0] = iClose(_Symbol, PERIOD_CURRENT, 0);
-    closeValues[1] = iClose(_Symbol, PERIOD_CURRENT, 1);
-    
-    if(SymbolInfoDouble(_Symbol, SYMBOL_ASK) > kijunValues[0] && closeValues[1] <= kijunValues[1])
+    // using bid/ask here because using close will apparently get data from previous candle???
+    // because we're making the trade before the current candle has officially closed
+    if(SymbolInfoDouble(Symbol(), SYMBOL_ASK) > kijunValues[0] && closeValues[0] <= kijunValues[1])
     {
       return SIGNAL_LONG;
     }
     
-    if(SymbolInfoDouble(_Symbol, SYMBOL_BID) < kijunValues[0] && closeValues[1] >= kijunValues[1])
+    if(SymbolInfoDouble(Symbol(), SYMBOL_BID) < kijunValues[0] && closeValues[0] >= kijunValues[1])
     {
       return SIGNAL_SHORT;
     }
     
     return SIGNAL_NONE;
 }
+
 
 
 void CheckForNewPosition()
@@ -272,15 +297,6 @@ void UpdateStopLoss()
       trade.PositionClose(ticket);
       Print("Stop Loss Hit");
    }
-}
-
-
-
-double CalculateKijun(int shift)
-{
-    double highestHigh = iHigh(_Symbol, PERIOD_CURRENT, iHighest(_Symbol, PERIOD_CURRENT, MODE_HIGH, InpKijunPeriod, shift));
-    double lowestLow = iLow(_Symbol, PERIOD_CURRENT, iLowest(_Symbol, PERIOD_CURRENT, MODE_LOW, InpKijunPeriod, shift));
-    return (highestHigh + lowestLow) / 2;
 }
 
 
