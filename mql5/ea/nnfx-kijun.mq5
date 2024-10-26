@@ -1,67 +1,75 @@
-   //+------------------------------------------------------------------+
-   //|                                                   NNFX Kijun.mq5 |
-   //|                                  Copyright 2024, MetaQuotes Ltd. |
-   //|                                             https://www.mql5.com |
-   //+------------------------------------------------------------------+
-   #property copyright "Copyright 2024, Robin Punnoose"
-   #property link      "https://www.robinpunn.com"
-   #property version   "1.01"
-   #property strict
-   
-   #include <Trade\Trade.mqh>
-   
-   int kijunHandle;   
-   input int InpKijunPeriod = 26;     
-   input int ATR_Period = 14;         
-   input double RiskPercent = 2.0;
-   double kijunValues[];
-   
-   int atrHandle;
-   CTrade trade;
-   double atrValue;
-   
-   bool partialCloseExecuted = false;
-   
-   enum SignalType
-   {
-      SIGNAL_LONG,
-      SIGNAL_SHORT,
-      SIGNAL_NONE
-   };
-   
-   
-   
-   int OnInit()
-   {
-       atrHandle = iATR(Symbol(), Period(), ATR_Period);
-       if(atrHandle == INVALID_HANDLE)
-       {
-           Print("Failed to create ATR indicator handle. Error code: ", GetLastError());
-           return INIT_FAILED;
-       }
-       
-       kijunHandle = iCustom(Symbol(), Period(), "Kijun", InpKijunPeriod);
-       if(kijunHandle == INVALID_HANDLE)
-       {
-           Print("Failed to create Kijun indicator handle. Error code: ", GetLastError());
-           return INIT_FAILED;
-       }
-       
-       ArraySetAsSeries(kijunValues, true);
-   
-       EventSetTimer(1);
-   
-       return INIT_SUCCEEDED;
-   }
-   
-   
-   
-   void OnDeinit(const int reason)
-   {
-      if(atrHandle != INVALID_HANDLE) IndicatorRelease(atrHandle);
-      if(kijunHandle != INVALID_HANDLE) IndicatorRelease(kijunHandle);   
-      EventKillTimer();     
-   }
+//+------------------------------------------------------------------+
+//|                                                   NNFX Kijun.mq5 |
+//|                                  Copyright 2024, MetaQuotes Ltd. |
+//|                                             https://www.mql5.com |
+//+------------------------------------------------------------------+
+#property copyright "Copyright 2024, Robin Punnoose"
+#property link      "https://www.robinpunn.com"
+#property version   "1.01"
+#property strict
+
+#include <Trade\Trade.mqh>
+
+enum SignalType
+{
+   SIGNAL_LONG,
+   SIGNAL_SHORT,
+   SIGNAL_NONE
+};
+
+enum AtrType
+{
+   ATR_FIXED,
+   ATR_DYNAMIC
+};
+
+input AtrType atrType = ATR_FIXED;
+
+int kijunHandle;   
+input int InpKijunPeriod = 26;     
+input int ATR_Period = 14;         
+input double RiskPercent = 2.0;
+double kijunValues[];
+
+int atrHandle;
+CTrade trade;
+double entryAtr;
+
+bool partialCloseExecuted = false;
+
+
+
+int OnInit()
+{
+    atrHandle = iATR(Symbol(), Period(), ATR_Period);
+    if(atrHandle == INVALID_HANDLE)
+    {
+        Print("Failed to create ATR indicator handle. Error code: ", GetLastError());
+        return INIT_FAILED;
+    }
+    
+    kijunHandle = iCustom(Symbol(), Period(), "Kijun", InpKijunPeriod);
+    if(kijunHandle == INVALID_HANDLE)
+    {
+        Print("Failed to create Kijun indicator handle. Error code: ", GetLastError());
+        return INIT_FAILED;
+    }
+    
+    ArraySetAsSeries(kijunValues, true);
+
+    EventSetTimer(1);
+
+    return INIT_SUCCEEDED;
+}
+
+
+
+void OnDeinit(const int reason)
+{
+   if(atrHandle != INVALID_HANDLE) IndicatorRelease(atrHandle);
+   if(kijunHandle != INVALID_HANDLE) IndicatorRelease(kijunHandle);   
+   EventKillTimer();     
+}
 
 
 
@@ -133,7 +141,7 @@ void CalculateKijun()
 
 SignalType Confirmation()
 {
-    double closeValues[];
+    double closeValues[1];
      
     closeValues[0] = iClose(Symbol(), Period(), 1);
     
@@ -156,10 +164,10 @@ SignalType Confirmation()
 
 void CheckForNewPosition()
 {
-    atrValue = GetATRValue();
-    if(atrValue == 0) return;
+    entryAtr = GetATRValue();
+    if(entryAtr == 0) return;
 
-    double stopLossDistance = 1.5 * atrValue;
+    double stopLossDistance = 1.5 * entryAtr;
     double accountBalance = AccountInfoDouble(ACCOUNT_BALANCE);
     double riskAmount = accountBalance * (RiskPercent / 100.0);
     
@@ -227,13 +235,22 @@ void ManageOpenPosition()
     double positionVolume = PositionGetDouble(POSITION_VOLUME);
     ENUM_POSITION_TYPE posType = (ENUM_POSITION_TYPE)PositionGetInteger(POSITION_TYPE);
     ulong ticket = PositionGetInteger(POSITION_TICKET);
-
-    atrValue = GetATRValue();
-    if(atrValue == 0) return;
+      
+    double atrToUse;
+    if(atrType == ATR_FIXED)
+    {
+      atrToUse = entryAtr;
+    }
+    else
+    {
+      atrToUse = GetATRValue();
+    }
+    if(atrToUse == 0) return;
+    
     
     if(posType == POSITION_TYPE_BUY)
     {
-        if(!partialCloseExecuted && longClosePrice >= openPrice + atrValue)
+        if(!partialCloseExecuted && longClosePrice >= openPrice + atrToUse)
         {
             double closeVolume = NormalizeDouble(positionVolume * 0.5, 2);
             // Close 50% of the position
@@ -245,9 +262,9 @@ void ManageOpenPosition()
             }       
         }
         
-        if(longClosePrice >= openPrice + 2*atrValue)
+        if(longClosePrice >= openPrice + 2*atrToUse)
         {
-            double newStopLoss = NormalizeDouble(longClosePrice - 1.5*atrValue, _Digits);
+            double newStopLoss = NormalizeDouble(longClosePrice - 1.5*atrToUse, _Digits);
             if(newStopLoss > stopLoss)
             {
                 trade.PositionModify(ticket, newStopLoss, 0.0);
@@ -257,7 +274,7 @@ void ManageOpenPosition()
     }
     else if(posType == POSITION_TYPE_SELL)
     {
-        if(!partialCloseExecuted && shortClosePrice <= openPrice - atrValue)
+        if(!partialCloseExecuted && shortClosePrice <= openPrice - atrToUse)
         {
             double closeVolume = NormalizeDouble(positionVolume * 0.5, 2);
             if(trade.PositionClosePartial(ticket,closeVolume))
@@ -268,9 +285,9 @@ void ManageOpenPosition()
             }               
         }
         
-        if(shortClosePrice <= openPrice - 2*atrValue)
+        if(shortClosePrice <= openPrice - 2*atrToUse)
         {
-            double newStopLoss = NormalizeDouble(shortClosePrice + 1.5*atrValue, _Digits);
+            double newStopLoss = NormalizeDouble(shortClosePrice + 1.5*atrToUse, _Digits);
             if(newStopLoss < stopLoss)
             {
                 trade.PositionModify(ticket, newStopLoss, 0.0);
