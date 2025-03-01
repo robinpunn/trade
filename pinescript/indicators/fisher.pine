@@ -1,0 +1,25 @@
+//@version=5
+indicator("Ehlers Fisher Transform Indicator", overlay=false)
+
+length = input.int(10, "Length", minval=1)
+
+calcFisher(src, len) =>
+    highestHigh = ta.highest(src, len)
+    lowestLow = ta.lowest(src, len)
+    value = 0.0
+    value := if (highestHigh != lowestLow)
+        (src - lowestLow) / (highestHigh - lowestLow) - 0.5 + 0.5 * nz(value[1])
+    else
+        0
+    value := math.max(math.min(value, 0.999), -0.999)
+    fish = 0.0
+    fish := 0.25 * math.log((1 + value) / (1 - value)) + 0.5 * nz(fish[1])
+    fish
+
+fb = calcFisher(hl2, length)
+f1 = fb[1]
+
+fbColor = fb > f1 ? color.lime : fb < f1 ? color.red : color.green
+
+plot(fb, "FB", color=fbColor, linewidth=1)
+plot(f1, "F1", color=color.navy, linewidth=1)
